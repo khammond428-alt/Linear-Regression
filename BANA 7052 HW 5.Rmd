@@ -1,0 +1,241 @@
+---
+title: "BANA 7052: Applied Linear Regression HW 5"
+author: "Katie Hammond M14848969"
+date: "2026-09-22"
+output: html_document
+---
+Question 1a: Exploratory analysis: rate and odds of excellence
+```{r}
+# Load data
+wine <- read.csv("~/Desktop/BANA 7052/winequality-red.csv", sep = ";")
+
+# Create binary excellent indicator
+wine$excellent <- as.integer(wine$quality >= 7)
+
+# Overall rate of excellent wines
+rate_excellent <- mean(wine$excellent)
+rate_excellent
+
+# Convert rate to odds: odds = p / (1 - p)
+odds_excellent <- rate_excellent / (1 - rate_excellent)
+odds_excellent
+
+```
+About 13.6% of the wines in this dataset rate excellent, which corresponds to odds of about 0.16 — meaning that for every wine rated excellent, there are about six wines that are not. The rate gives the proportion, while the odds express the same chance as a ratio.
+
+Question 1b: Splitting by median alcohol and volatile acidity
+```{r}
+wine <- read.csv("~/Desktop/BANA 7052/winequality-red.csv", sep = ";")
+wine$excellent <- as.integer(wine$quality >= 7)
+
+# Median splits
+med_alc <- median(wine$alcohol)
+med_va  <- median(wine$volatile.acidity)
+
+# Excellent rate by alcohol half
+rate_by_alcohol <- tapply(wine$excellent, wine$alcohol > med_alc, mean)
+rate_by_alcohol
+
+# Excellent rate by volatile acidity half
+rate_by_va <- tapply(wine$excellent, wine$volatile.acidity > med_va, mean)
+rate_by_va
+
+```
+Alcohol
+Wines above the median alcohol level fare much better: about 25.1% rate excellent, compared to only 3.2% below the median.
+
+Volatile acidity
+Wines at or below the median volatile acidity fare better: about 21.3% rate excellent, compared to only 5.5% above the median.
+
+Higher‑alcohol wines are more likely to be excellent, while lower volatile acidity wines are more likely to be excellent.
+
+
+
+Question 1c: Why lm() is unsuited for a 0/1 response
+
+A linear model is inappropriate for a binary excellent/not-excellent outcome for two reasons.
+
+1. The fitted values from lm(excellent ~ alcohol) are not restricted to the 0–1 range, so the model can produce “probabilities” that are negative or greater than 1, which are impossible for a Bernoulli response.
+
+2. Linear regression assumes constant variance, but a 0/1 variable has variance p(1 − p), which depends on the mean. This violates the constant-variance assumption built into lm(), making the model structurally misspecified.
+
+
+
+Question 2a:
+```{r}
+fit <- glm(excellent ~ alcohol + volatile.acidity + sulphates + pH,
+           data = wine, family = binomial)
+
+summary(fit)
+```
+All four predictors — alcohol, volatile acidity, sulphates, and pH — are statistically significant at α = 0.05 according to the Wald tests. Alcohol and sulphates have positive coefficients, indicating higher values increase the log‑odds of excellence, while volatile acidity and pH have negative coefficients, indicating higher values decrease the log‑odds of excellence.
+
+Question 2b: 
+
+The estimated coefficient for alcohol is 1.05834, which corresponds to an odds ratio of:
+exp⁡(1.05834)≈2.88.
+This means that each additional percentage point of alcohol multiplies a wine’s odds of being rated excellent by about 2.9. In practical terms, a wine that is 1% higher in alcohol has almost triple the odds of receiving an excellent rating compared to an otherwise similar wine. This is a very strong effect, showing that alcohol content is one of the most influential predictors in the model.
+
+
+Question 2c:
+
+For each 0.1 g/L increase in volatile acidity, a wine’s odds of rating excellent decrease by about 32%, since the odds are multiplied by roughly 0.68.
+
+Question 2d:
+```{r}
+fit <- glm(excellent ~ alcohol + volatile.acidity + sulphates + pH,
+           data = wine, family = binomial)
+
+new_wines <- data.frame(
+  alcohol = c(13, 9.5),
+  volatile.acidity = c(0.3, 0.9),
+  sulphates = c(0.9, 0.5),
+  pH = c(3.2, 3.4)
+)
+
+pred_probs <- predict(fit, newdata = new_wines, type = "response")
+pred_probs
+```
+Using the fitted logistic regression model, the predicted probability that a wine rates excellent is:
+
+0.8437 for the wine with alcohol 13, volatile.acidity 0.3, sulphates 0.9, and pH 3.2
+
+0.00386 for the wine with alcohol 9.5, volatile.acidity 0.9, sulphates 0.5, and pH 3.4
+
+These results show a dramatic contrast: the first wine has a very high probability of being rated excellent, while the second wine has an extremely low probability.
+
+Question 3a: Fit reduced and full models
+```{r}
+full <- glm(excellent ~ alcohol + volatile.acidity + sulphates + pH,
+            data = wine, family = binomial)
+
+reduced <- glm(excellent ~ alcohol + volatile.acidity + sulphates,
+               data = wine, family = binomial)
+
+anova(reduced, full, test = "Chisq")
+```
+Null hypothesis: null :𝛽pH = 0, i.e., pH does not improve the model beyond alcohol, volatile acidity, and sulphates.
+Deviance change: 917.26 − 911.70 = 5.5647.
+p-value:𝑝=0.01833.
+Conclusion: Since𝑝<0.05, we reject the null and conclude that pH belongs in the model. This agrees with the Wald test from Question 2a, which also found pH significant (p ≈ 0.0193).
+
+Question 3b:
+```{r}
+fit_cand <- glm(excellent ~ alcohol + volatile.acidity + sulphates + pH +
+                  citric.acid, data = wine, family = binomial)
+one_test <- function(tm) {
+  smaller <- update(fit_cand, formula(paste(". ~ . -", tm)))
+  a <- anova(smaller, fit_cand, test = "Chisq")
+  data.frame(term = tm, df = a$Df[2], drop = round(a$Deviance[2], 1),
+             p = signif(a$"Pr(>Chi)"[2], 2))
+}
+do.call(rbind, lapply(c("alcohol", "volatile.acidity", "sulphates", "pH",
+                        "citric.acid"), one_test))
+
+# Fit citric.acid
+fit_single <- glm(excellent ~ citric.acid, data = wine, family = binomial)
+summary(fit_single)
+exp(coef(fit_single)[2])   # odds ratio
+
+```
+Citric acid looks extremely important on its own because it has a strong marginal relationship with excellence, but once alcohol, volatile acidity, sulphates, and pH are included, its unique contribution disappears. The reason is correlation: citric acid is strongly correlated with volatile acidity and moderately correlated with the other predictors, so the other variables already explain the variation citric acid would have captured. In short, citric acid is predictive by itself but redundant in the presence of the other four.
+
+Question 3c:
+```{r}
+# Drop the uninformative candidate
+fit4 <- glm(excellent ~ alcohol + volatile.acidity + sulphates + pH,
+            data = wine, family = binomial)
+
+summary(fit4)
+
+```
+Citric acid overlaps strongly with pH and volatile acidity. When citric acid is included, it “soaks up” some of the variation that pH explains. Once citric acid is removed, pH regains its full signal.  
+
+A term passing its test is not automatically a reason to keep it, and a term failing its test is not automatically a reason to drop it. Model selection also depends on interpretability, scientific relevance, collinearity structure, and whether the predictor adds unique information beyond the others.
+
+
+Question 4a: Confusion Matrix
+```{r}
+# 1. Predict probabilities from the four‑predictor model
+prob <- predict(fit4, type = "response")
+
+# 2. Classify using cutoff = 0.5
+pred <- ifelse(prob > 0.5, 1, 0)
+
+# 3. Confusion matrix
+cm <- table(pred, wine$excellent)
+cm
+
+# 4. Accuracy at cutoff 0.5
+accuracy <- sum(diag(cm)) / sum(cm)
+accuracy
+
+# 5. Accuracy of the "predict nothing excellent" model
+always0 <- table(rep(0, nrow(wine)), wine$excellent)
+acc_always0 <- sum(diag(always0)) / sum(always0)
+acc_always0
+
+# 6. Sensitivity at cutoff 0.5
+sensitivity <- cm[2,2] / sum(cm[,2])
+sensitivity
+
+```
+The model’s accuracy at a 0.5 cutoff is 0.874, which is only slightly better than the 0.864 accuracy of a trivial model that predicts no wine is excellent. Because excellent wines are rare, overall accuracy is dominated by the large “ordinary” class, so accuracy alone is misleading. The sensitivity is only about 0.29, meaning the model misses most excellent wines. This shows that 0.5 is not automatically the right cutoff — when the positive class is rare, a lower cutoff is often needed to detect more excellent wines.
+
+
+Question 4b:
+```{r}
+# predict probabilities
+prob <- predict(fit4, type = "response")
+
+# classify using cutoff = 0.14
+pred14 <- ifelse(prob > 0.14, 1, 0)
+
+# confusion matrix
+cm14 <- table(pred14, wine$excellent)
+cm14
+
+# accuracy
+acc14 <- sum(diag(cm14)) / sum(cm14)
+acc14
+
+# sensitivity
+sens14 <- cm14[2,2] / sum(cm14[,2])
+sens14
+
+# specificity
+spec14 <- cm14[1,1] / sum(cm14[,1])
+spec14
+
+```
+Lowering the cutoff from 0.5 to the base rate (0.14) massively increases sensitivity — the model now catches most excellent wines — but it reduces specificity, meaning many more ordinary wines are falsely flagged as excellent. Overall accuracy drops because ordinary wines are the majority class, so misclassifying them hurts accuracy more than correctly identifying excellent wines helps it.
+
+This is the trade‑off:
+Higher sensitivity
+Lower specificity
+Lower overall accuracy
+
+And this is exactly why 0.5 is not automatically the right cutoff when the positive class is rare.
+
+
+Question 4c: ROC and AUC
+```{r}
+library(pROC)
+
+prob <- predict(fit4, type = "response")
+
+roc_obj <- roc(wine$excellent, prob)
+
+plot(roc_obj, col = "blue", lwd = 2)
+
+auc(roc_obj)
+```
+An AUC of 0.8693 means that in about 87% of randomly chosen excellent–ordinary wine pairs, the model assigns a higher fitted probability to the excellent wine.
+
+AUC measures how often the classifier ranks a truly positive case higher than a truly negative one. A coin‑flip classifier assigns random scores, so in any random excellent–ordinary pair, it has a 50% chance of putting the excellent wine higher and a 50% chance of putting the ordinary wine higher. That symmetry produces an AUC of exactly 0.5.
+
+
+Question 4d:
+
+A shop that wants to rank bottles from most to least promising only cares about how well the model orders wines, not about any single cutoff — and AUC is exactly a measure of how good that ranking is across all possible thresholds. A certification panel, by contrast, must make a yes/no decision on each wine, so it needs the confusion matrix at a specific cutoff to understand how many excellent wines it correctly awards and how many ordinary wines it mistakenly certifies.
+
