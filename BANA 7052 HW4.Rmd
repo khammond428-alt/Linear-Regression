@@ -1,0 +1,213 @@
+---
+title: "BANA 7052 HW4"
+author: "Katie Hammond"
+date: "2026-09-21"
+output: html_document
+---
+
+1a.
+```{r}
+# Load the alumni data
+alumni <- read.csv("~/Desktop/BANA 7052/alumni.csv")
+
+# Fit the interaction model
+model1 <- lm(
+  alumni_giving_rate ~ percent_of_classes_under_20 +
+    student_faculty_ratio * private,
+  data = alumni
+)
+
+# Display the model results
+summary(model1)
+```
+Estimated model: Y = 25.57 + 0.006X1 - 0.58X2 + 27.91X3 - 1.47X4
+
+1b.
+```{r}
+# Public university slope
+public_slope <- coef(model1)["student_faculty_ratio"]
+
+# Private university slope
+private_slope <- coef(model1)["student_faculty_ratio"] +
+                 coef(model1)["student_faculty_ratio:private"]
+
+public_slope
+private_slope
+```
+The slope for public universities is -0.58 and the slope for private universities is -2.06. Interaction: The effect of student/faculty ratio on alumni giving rate is 1.477699 units more negative for private universities than for public universities.
+
+1c.
+```{r}
+# Fit the parallel-lines model (no interaction)
+model2 <- lm(
+  alumni_giving_rate ~ percent_of_classes_under_20 +
+    student_faculty_ratio + private,
+  data = alumni
+)
+
+# Compare the two models
+anova(model2, model1)
+AIC(model2, model1)
+```
+The nested-model F-test gives an F-statistic of 2.2788 with a p-value of 0.1385. Since the p-value is greater than 0.05, the interaction does not significantly improve the model compared with the parallel-lines model.
+
+The AIC for the parallel-lines model is 353.6151, while the AIC for the interaction model is 353.1365. Since lower AIC is preferred, AIC slightly favors the interaction model, but the difference is very small.
+
+Therefore, the two comparisons do not agree. I would choose the parallel-lines model because the F-test does not provide sufficient evidence that the interaction improves the model, and the small AIC difference does not provide a strong reason to use the more complex interaction model.
+
+
+1d. 
+```{r}
+# model 1 coefficient
+coef(model2)
+
+# Predicted alumni giving rate for X1 = 40, X2 = 5, X3 = 1
+predict(
+  model2,
+  newdata = data.frame(
+    percent_of_classes_under_20 = 40,
+    student_faculty_ratio = 5,
+    private = 1
+  )
+)
+```
+The predicted alumni giving rate is 39.17
+
+
+2a.
+```{r}
+set.seed(7052)
+n <- 200
+X <- rnorm(n, mean = 3, sd = 0.5)
+epsilon <- rnorm(n, mean = 0, sd = 0.5)
+Y <- (10 + 5*X - 2*X^2 + epsilon)^2
+```
+
+2b.
+```{r}
+fit1 <- lm(Y ~ X)
+plot(fit1, which = 1)
+```
+The linear model fails to capture the quadratic relationship between𝑌and 𝑋. Residuals are systematically positive for mid-range 𝑋and negative at the extremes (or vice versa).
+The variance may also increase slightly with fitted values, hinting at non-constant spread.
+The residual plot shows nonlinearity — the mean function is misspecified.
+You need to add the quadratic term (𝑋^2) to fix the mean structure.
+
+2c. 
+```{r}
+fit2 <- lm(Y ~ X + I(X^2))
+plot(fit2, which = 1)
+```
+When we update the model to lm(𝑦∼𝑥+𝐼(𝑥^2)), the residuals-versus-fitted plot shows a clear improvement compared to the simple linear model: the systematic curvature largely disappears, and the residuals are more evenly centered around zero across the range of fitted values, indicating that the quadratic term better captures the true mean structure. However, the spread of the residuals still increases with the fitted values, forming a mild funnel shape. This suggests that, although the mean function is now well specified, the assumption of constant error variance is violated, and a variance-stabilizing transformation (such as a Box–Cox or square-root transformation) is still needed.
+
+2d.
+```{r}
+library(MASS)
+boxcox(fit2)
+```
+The Box–Cox scan peaks near λ=1, indicating that no transformation of the response is needed for this fitted model. This is not consistent with the data-generating process, which was defined on the square-root scale (λ=0.5). The difference occurs because the Box–Cox procedure was applied to the squared response, so it correctly identifies that the current scale of Y already approximates linearity.
+
+2e.
+```{r}
+# Part c model (quadratic, untransformed)
+fit2 <- lm(Y ~ X + I(X^2))
+
+# Residual plot before transformation
+plot(fit2, which = 1, main = "Residuals vs Fitted (Untransformed Y)")
+
+# Refit using the correct transformation
+fit_sqrt <- lm(sqrt(Y) ~ X + I(X^2))
+
+# Residual plot after transformation
+plot(fit_sqrt, which = 1, main = "Residuals vs Fitted (sqrt(Y) Transformed)")
+
+par(mfrow = c(1, 2))
+plot(fit2, which = 1, main = "Untransformed Y")
+plot(fit_sqrt, which = 1, main = "sqrt(Y) Transformed")
+par(mfrow = c(1, 1))
+
+```
+After refitting the model using the square‑root transformation, lm(𝑌∼𝑋+𝐼(𝑋^2)), the residual-versus-fitted plot shows a clear improvement compared to the untransformed model.
+
+In the original model, the residuals displayed non‑constant variance, with a noticeable fanning pattern as the fitted values increased. After applying the square‑root transformation, the residuals are much more evenly spread across the fitted range, with no obvious funnel shape or systematic pattern.
+
+This indicates that the transformed model fits the data better: the mean structure is correctly specified, and the variance assumption is now much closer to constant. The square‑root transformation successfully stabilizes the variance and produces residuals that more closely satisfy the standard linear model assumptions.
+
+
+3a. 
+```{r}
+
+fit <- lm(alumni_giving_rate ~ percent_of_classes_under_20 +
+            student_faculty_ratio + private,
+          data = alumni)
+
+plot(fit, which = 1)
+```
+The residuals‑versus‑fitted plot shows slight curvature and mild uneven spread, suggesting that the linear additive model may not fully capture the mean structure and that error variance is not perfectly constant. A few points appear somewhat isolated, but none are extreme. Overall, the model fit is reasonable, though minor nonlinearity and heteroscedasticity are present.
+
+
+3b.
+```{r}
+ plot(fit, which = 2)
+```
+The Q–Q plot shows that most standardized residuals lie near the diagonal line, indicating approximate normality, with minor tail departures suggesting heavier tails. Moderate departures from normality are not fatal because the least‑squares estimates remain unbiased and consistent, and inference procedures are robust to small deviations from normality when sample size is reasonably large.
+
+
+3c.
+```{r}
+lev <- hatvalues(fit)
+
+# Number of observations and parameters (including intercept)
+n <- nrow(alumni)
+p <- length(coef(fit))   # should be 4 here
+
+# Rule of thumb: h_i > 2p/n
+cutoff <- 2 * p / n
+
+which_high <- which(lev > cutoff)
+which_high
+alumni[which_high, c("school",
+                     "percent_of_classes_under_20",
+                     "student_faculty_ratio",
+                     "private")]
+
+```
+Using the rule of thumb ℎ𝑖>2𝑝/𝑛, the high‑leverage universities are Boston College, U. of California–Berkeley, and U. of Washington. The highest‑leverage school is U. of California–Berkeley. It has high leverage because its predictor combination is unusual: it has a very high percentage of classes under 20, a low student–faculty ratio, and is a public institution, whereas most schools with similar values are private. This atypical combination places Berkeley far from the center of the predictor space, producing high leverage.
+
+3d. 
+```{r}
+# Cook's distance
+cd <- cooks.distance(fit)
+
+# Most influential observation
+which_max_cd <- which.max(cd)
+alumni[which_max_cd, c("school",
+                       "percent_of_classes_under_20",
+                       "student_faculty_ratio",
+                       "private")]
+
+# Refit model without that school
+fit_minus <- lm(alumni_giving_rate ~ percent_of_classes_under_20 +
+                   student_faculty_ratio + private,
+                 data = alumni[-which_max_cd, ])
+
+# Compare coefficients
+coef(fit)["student_faculty_ratio"]
+coef(fit_minus)["student_faculty_ratio"]
+```
+Cook’s distance identifies Princeton University as the most influential observation. Princeton has an unusually high percentage of classes under 20 (68) and a very low student–faculty ratio (5), making its predictor combination far from the rest of the dataset.
+
+After removing Princeton and refitting the model, the coefficient of the student–faculty ratio changes from –1.398 to –1.120. Although the coefficient becomes slightly less negative, the direction and practical interpretation remain the same. Therefore, the model’s conclusion about the student–faculty ratio is not sensitive to this single influential school.
+
+3e.
+```{r}
+library(car)
+vif(fit)
+```
+The VIF values for the three predictors are 3.18, 3.51, and 3.60. All are well below 5, indicating only moderate multicollinearity. The strongest overlap is between percent_of_classes_under_20 and student_faculty_ratio, which both measure aspects of class size. However, the VIFs show that this overlap is not severe, and the model’s conclusions are not compromised by multicollinearity.
+
+The strongest overlap is between percent_of_classes_under_20 and student_faculty_ratio, which both measure aspects of class size and instructional intensity. This moderate multicollinearity explains why their individual t‑tests in Homework 3 were weaker even though the overall model was significant. Since all VIFs are below 5, the overlap is not severe, and no corrective action is needed.
+
+3f.
+
+The normal linear regression model assumes linearity, independent errors, constant variance, normality of errors, and no perfect multicollinearity. Residuals are plotted against fitted values to check these assumptions: curvature indicates nonlinearity, changes in spread indicate heteroscedasticity, and isolated points reveal outliers or influential observations. This plot provides a direct visual check of whether the model form is appropriate.
