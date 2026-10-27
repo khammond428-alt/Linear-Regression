@@ -1,0 +1,164 @@
+---
+title: "BANA 7051 HW 2"
+author: "Katie Hammond"
+date: "2026-09-07"
+output: html_document
+---
+
+```{r}
+alumni <- read.csv("~/Desktop/BANA 7052/alumni.csv")
+
+# Question 1a
+
+# Fit simple linear regression
+fit <- lm(alumni_giving_rate ~ percent_of_classes_under_20, data = alumni)
+
+# Extract slope estimate and standard error
+b1    <- coef(fit)[2]
+se_b1 <- summary(fit)$coefficients[2, 2]
+
+# Rebuild the t-statistic manually
+t_stat <- b1 / se_b1
+
+# Extract p-value
+p_value <- summary(fit)$coefficients[2, 4]
+
+# Print results
+b1
+se_b1
+t_stat
+p_value
+
+# Question 1b
+
+# Test whether the slope differs from 1
+t_stat_1 <- (b1 - 1) / se_b1
+t_stat_1
+
+# Two-sided p-value for H0: beta1 = 1
+p_value_1 <- 2 * pt(abs(t_stat_1), df = nrow(alumni) - 2, lower.tail = FALSE)
+p_value_1
+
+
+# Question 1c
+summary(fit)$r.squared
+
+
+# Question 1d
+
+# 95% confidence interval for mean giving rate at X = 50
+predict(fit,
+        newdata = data.frame(percent_of_classes_under_20 = 50),
+        interval = "confidence",
+        level = 0.95)
+
+# 95% prediction interval for one university at X = 50
+predict(fit,
+        newdata = data.frame(percent_of_classes_under_20 = 50),
+        interval = "prediction",
+        level = 0.95)
+
+# Question 1e
+
+# Fit model
+fit <- lm(alumni_giving_rate ~ percent_of_classes_under_20, data = alumni)
+
+# Create sequence of X values for smooth confidence band
+x_seq <- seq(min(alumni$percent_of_classes_under_20),
+             max(alumni$percent_of_classes_under_20),
+             length.out = 200)
+
+# Get confidence band
+conf_band <- predict(fit,
+                     newdata = data.frame(percent_of_classes_under_20 = x_seq),
+                     interval = "confidence")
+
+# Plot training data
+plot(alumni$percent_of_classes_under_20, alumni$alumni_giving_rate,
+     pch = 19, col = "darkblue",
+     xlab = "Percent of Classes Under 20",
+     ylab = "Alumni Giving Rate",
+     main = "Regression Line with 95% Confidence Band")
+
+# Add fitted regression line
+abline(fit, col = "red", lwd = 2)
+
+# Add confidence band
+lines(x_seq, conf_band[, "lwr"], col = "orange", lwd = 2, lty = 2)
+lines(x_seq, conf_band[, "upr"], col = "orange", lwd = 2, lty = 2)
+
+# Add the point (X̄, Ȳ)
+points(mean(alumni$percent_of_classes_under_20),
+       mean(alumni$alumni_giving_rate),
+       pch = 19, col = "purple", cex = 2)
+
+# Question 1f
+
+anova(fit)
+
+
+# Question 2a
+
+# Question 2b
+set.seed(7052)
+
+n <- 100
+x <- rnorm(n, mean = 2, sd = 0.1)
+eps <- rnorm(n, mean = 0, sd = 0.5)
+y <- 10 + 5*x + eps
+
+fit <- lm(y ~ x)
+summary(fit)
+
+# Question 2c
+set.seed(7052)
+
+n <- 100
+x <- rnorm(n, mean = 2, sd = 0.1)
+eps2 <- rnorm(n, mean = 0, sd = 1)   # sigma = 1 now
+
+y2 <- 10 + 5*x + eps2
+
+fit2 <- lm(y2 ~ x)
+summary(fit2)
+
+# MSE:
+mse2 <- mean(fit2$residuals^2)
+mse2
+
+# Question 3a
+
+set.seed(7052)
+n <- 100
+draws <- replicate(1000, {
+  x <- rnorm(n, mean = 2, sd = 0.1)
+  y <- 10 + 5 * x + rnorm(n, mean = 0, sd = 0.5)
+  fit <- lm(y ~ x)
+  rss <- sum(residuals(fit)^2)
+  c(b1 = unname(coef(fit)[2]),   # estimated slope
+    mse = rss / (n - 2),         # MSE
+    mle = rss / n)               # maximum-likelihood estimate
+})
+
+mean(draws["b1", ])
+sd(draws["b1", ])
+
+# Question 3b
+set.seed(7052)
+n <- 400
+draws <- replicate(1000, {
+  x <- rnorm(n, mean = 2, sd = 0.1)
+  y <- 10 + 5 * x + rnorm(n, mean = 0, sd = 0.5)
+  fit <- lm(y ~ x)
+  rss <- sum(residuals(fit)^2)
+  c(b1 = unname(coef(fit)[2]),
+    mse = rss / (n - 2),
+    mle = rss / n)
+})
+
+mean(draws["b1", ])
+sd(draws["b1", ])
+
+
+```
+
