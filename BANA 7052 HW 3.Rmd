@@ -1,0 +1,157 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+```{r}
+
+# Homework 1 — Simple & Multiple Linear Regression
+
+## Question 1 — Alumni Giving Data
+
+```{r}
+alumni <- read.csv("~/Desktop/BANA 7052/alumni.csv")
+
+Y  <- alumni$alumni_giving_rate
+X1 <- alumni$percent_of_classes_under_20
+X2 <- alumni$student_faculty_ratio
+```
+
+### Question 1a — Fit Model with X1 and X2
+
+```{r}
+model <- lm(Y ~ X1 + X2)
+summary(model)
+coef(model)
+```
+
+### Question 1b — Prediction at X1 = 50, X2 = 10
+
+```{r}
+pred <- predict(
+  model,
+  newdata = data.frame(X1 = 50, X2 = 10)
+)
+pred
+```
+
+### Question 1c — Coefficients Table
+
+```{r}
+summary(model)$coefficients
+```
+
+### Question 1d — F‑Statistic and p‑value
+
+```{r}
+summary(model)$fstatistic
+
+F_stat <- summary(model)$fstatistic
+
+pf(
+  F_stat[1],
+  F_stat[2],
+  F_stat[3],
+  lower.tail = FALSE
+)
+```
+
+### Question 1e — R² and Adjusted R²
+
+```{r}
+summary(model)$r.squared
+summary(model)$adj.r.squared
+
+model_hw1 <- lm(Y ~ X1)
+summary(model_hw1)$r.squared
+summary(model_hw1)$adj.r.squared
+```
+
+### Question 1f — Correlations
+
+```{r}
+cor(X1, Y)
+cor(X2, Y)
+cor(X1, X2)
+
+cor(X1, Y)^2
+cor(X2, Y)^2
+```
+
+---
+
+## Question 2 — Adding Private Indicator
+
+```{r}
+X3 <- alumni$private
+
+model_2 <- lm(Y ~ X1 + X2 + X3)
+summary(model_2)
+coef(model_2)
+```
+
+### Question 2b — Interpretation of Private Dummy
+
+```{r}
+b0 <- coef(model_2)[1]
+b1 <- coef(model_2)[2]
+b2 <- coef(model_2)[3]
+b3 <- coef(model_2)[4]
+
+# For X3 = 0 (public)
+b0
+b1
+b2
+
+# For X3 = 1 (private)
+b0 + b3
+b1
+b2
+```
+
+### Question 2c — Partial F‑Test
+
+```{r}
+anova(model, model_2)
+```
+
+---
+
+## Question 3 — Simulation Study
+
+### Question 3a — Generate Data
+
+```{r}
+set.seed(7052)
+
+n <- 100
+X_1 <- rnorm(n, mean = 2, sd = 0.1)
+X_2 <- rnorm(n, mean = 0, sd = 0.4)
+epsilon <- rnorm(n, mean = 0, sd = 0.5)
+Y <- 10 + 5*X_1 - 2*X_2 + epsilon
+```
+
+### Question 3b — Fit Model
+
+```{r}
+model_3a <- lm(Y ~ X_1 + X_2)
+summary(model_3a)
+```
+
+### Question 3c — Larger Noise
+
+```{r}
+n <- 100
+X_1 <- rnorm(n, mean = 2, sd = 0.1)
+X_2 <- rnorm(n, mean = 0, sd = 0.4)
+epsilon <- rnorm(n, mean = 0, sd = 1)
+Y <- 10 + 5*X_1 - 2*X_2 + epsilon
+
+model_3b <- lm(Y ~ X_1 + X_2)
+summary(model_3b)
+```
+
+
